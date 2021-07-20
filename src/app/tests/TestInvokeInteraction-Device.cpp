@@ -22,18 +22,19 @@
  *
  */
 
-#include <messaging/ExchangeDelegate.h>
 #include <app/InteractionModelEngine.h>
 #include <core/CHIPCore.h>
 #include <core/CHIPTLV.h>
-#include <core/CHIPTLVText.hpp>
 #include <core/CHIPTLVData.hpp>
 #include <core/CHIPTLVDebug.hpp>
+#include <core/CHIPTLVText.hpp>
 #include <core/CHIPTLVUtilities.hpp>
 #include <messaging/ExchangeContext.h>
+#include <messaging/ExchangeDelegate.h>
 #include <messaging/ExchangeMgr.h>
 #include <messaging/Flags.h>
 #include <platform/CHIPDeviceLayer.h>
+#include <protocols/secure_channel/MessageCounterManager.h>
 #include <protocols/secure_channel/PASESession.h>
 #include <support/ErrorStr.h>
 #include <support/UnitTestRegistration.h>
@@ -41,12 +42,11 @@
 #include <system/TLVPacketBufferBackingStore.h>
 #include <transport/SecureSessionMgr.h>
 #include <transport/raw/UDP.h>
-#include <protocols/secure_channel/MessageCounterManager.h>
 
 #include <nlunit-test.h>
 
-#include <device/SchemaUtils.h>
 #include <TestCluster-Gen.h>
+#include <device/SchemaUtils.h>
 
 namespace chip {
 static System::Layer gSystemLayer;
@@ -58,30 +58,28 @@ static Transport::AdminId gAdminId = 0;
 
 namespace app {
 
-nlTestSuite *gpSuite = nullptr;
-InvokeResponder *gServerInvoke = nullptr;
-Messaging::ExchangeContext *gClientEc = nullptr;
+nlTestSuite * gpSuite                  = nullptr;
+InvokeResponder * gServerInvoke        = nullptr;
+Messaging::ExchangeContext * gClientEc = nullptr;
 
 class TestServerCluster : public ClusterServer
 {
 public:
     TestServerCluster();
-    CHIP_ERROR OnInvokeRequest(CommandParams &commandParams, InvokeResponder &invokeInteraction, TLV::TLVReader *payload) override;
+    CHIP_ERROR OnInvokeRequest(CommandParams & commandParams, InvokeResponder & invokeInteraction,
+                               TLV::TLVReader * payload) override;
 
     void SetAsyncResp() { mDoAsyncResp = true; }
 
     CHIP_ERROR SendAsyncResp();
 
-    bool mGotCommandA = false;
-    bool mDoAsyncResp = false;
-    InvokeResponder *mStashedInvokeResponder = nullptr;
+    bool mGotCommandA                         = false;
+    bool mDoAsyncResp                         = false;
+    InvokeResponder * mStashedInvokeResponder = nullptr;
     CommandParams mStashedCommandParams;
 };
 
-TestServerCluster::TestServerCluster()
-    : ClusterServer(chip::app::Cluster::TestCluster::kClusterId)
-{
-}
+TestServerCluster::TestServerCluster() : ClusterServer(chip::app::Cluster::TestCluster::kClusterId) {}
 
 CHIP_ERROR
 TestServerCluster::SendAsyncResp()
@@ -91,27 +89,28 @@ TestServerCluster::SendAsyncResp()
     chip::app::Cluster::TestCluster::StructA::Type e[5];
     uint8_t d[5];
 
-    resp.a = 21;
-    resp.b = 49;
+    resp.a   = 21;
+    resp.b   = 49;
     resp.c.x = 19;
     resp.c.y = 233;
-    resp.d = chip::Span<uint8_t>{d};
-    resp.e = chip::Span<chip::app::Cluster::TestCluster::StructA::Type>{e};
+    resp.d   = chip::Span<uint8_t>{ d };
+    resp.e   = chip::Span<chip::app::Cluster::TestCluster::StructA::Type>{ e };
 
-    for (size_t i = 0; i < ArraySize(d); i++) {
+    for (size_t i = 0; i < ArraySize(d); i++)
+    {
         d[i] = (uint8_t)(255 - i);
     }
 
-    for (size_t i = 0; i < ArraySize(e); i++) {
+    for (size_t i = 0; i < ArraySize(e); i++)
+    {
         e[i].x = (uint8_t)(255 - i);
         e[i].y = (uint8_t)(255 - i);
     }
 
     mStashedCommandParams.CommandId = chip::app::Cluster::TestCluster::kCommandBId;
 
-    err = mStashedInvokeResponder->AddResponse(mStashedCommandParams, [&](chip::TLV::TLVWriter &writer, uint64_t tag) {
-        return EncodeSchemaElement(resp, writer, tag);
-    });
+    err = mStashedInvokeResponder->AddResponse(
+        mStashedCommandParams, [&](chip::TLV::TLVWriter & writer, uint64_t tag) { return EncodeSchemaElement(resp, writer, tag); });
 
     NL_TEST_ASSERT(gpSuite, err == CHIP_NO_ERROR);
 
@@ -121,15 +120,16 @@ TestServerCluster::SendAsyncResp()
 }
 
 CHIP_ERROR
-TestServerCluster::OnInvokeRequest(CommandParams &commandParams, InvokeResponder &invokeInteraction, TLV::TLVReader *payload)
+TestServerCluster::OnInvokeRequest(CommandParams & commandParams, InvokeResponder & invokeInteraction, TLV::TLVReader * payload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     chip::app::Cluster::TestCluster::CommandA::Type req;
     uint8_t d[5];
 
-    req.d = chip::Span<uint8_t>{d};
+    req.d = chip::Span<uint8_t>{ d };
 
-    if (commandParams.CommandId == chip::app::Cluster::TestCluster::kCommandAId) {
+    if (commandParams.CommandId == chip::app::Cluster::TestCluster::kCommandAId)
+    {
         printf("Received CommandA\n");
 
         gServerInvoke = &invokeInteraction;
@@ -144,7 +144,8 @@ TestServerCluster::OnInvokeRequest(CommandParams &commandParams, InvokeResponder
         NL_TEST_ASSERT(gpSuite, req.c.x == 13);
         NL_TEST_ASSERT(gpSuite, req.c.y == 99);
 
-        for (size_t i = 0; i < ArraySize(d); i++) {
+        for (size_t i = 0; i < ArraySize(d); i++)
+        {
             NL_TEST_ASSERT(gpSuite, d[i] == i);
         }
 
@@ -152,37 +153,40 @@ TestServerCluster::OnInvokeRequest(CommandParams &commandParams, InvokeResponder
         // Send response synchronously
         //
 
-        if (!mDoAsyncResp) {
+        if (!mDoAsyncResp)
+        {
             chip::app::Cluster::TestCluster::CommandB::Type resp;
             chip::app::Cluster::TestCluster::StructA::Type e[5];
 
-            resp.a = 21;
-            resp.b = 49;
+            resp.a   = 21;
+            resp.b   = 49;
             resp.c.x = 19;
             resp.c.y = 233;
-            resp.d = chip::Span<uint8_t>{d};
-            resp.e = chip::Span<chip::app::Cluster::TestCluster::StructA::Type>{e};
+            resp.d   = chip::Span<uint8_t>{ d };
+            resp.e   = chip::Span<chip::app::Cluster::TestCluster::StructA::Type>{ e };
 
-            for (size_t i = 0; i < ArraySize(d); i++) {
+            for (size_t i = 0; i < ArraySize(d); i++)
+            {
                 d[i] = (uint8_t)(255 - i);
             }
 
-            for (size_t i = 0; i < ArraySize(e); i++) {
+            for (size_t i = 0; i < ArraySize(e); i++)
+            {
                 e[i].x = (uint8_t)(255 - i);
                 e[i].y = (uint8_t)(255 - i);
             }
 
             commandParams.CommandId = chip::app::Cluster::TestCluster::kCommandBId;
-            err = invokeInteraction.AddResponse(commandParams, [&](chip::TLV::TLVWriter &writer, uint64_t tag) {
-                return EncodeSchemaElement(resp, writer, tag);
-            });
+            err                     = invokeInteraction.AddResponse(
+                commandParams, [&](chip::TLV::TLVWriter & writer, uint64_t tag) { return EncodeSchemaElement(resp, writer, tag); });
 
             NL_TEST_ASSERT(gpSuite, err == CHIP_NO_ERROR);
         }
-        else {
+        else
+        {
             invokeInteraction.IncrementHoldOffRef();
             mStashedInvokeResponder = &invokeInteraction;
-            mStashedCommandParams = commandParams;
+            mStashedCommandParams   = commandParams;
         }
 
         mGotCommandA = true;
@@ -200,9 +204,10 @@ public:
     int GetNumActiveInvokes();
 
 protected:
-    void OnResponse(InvokeInitiator &invokeInteraction, CommandParams &commandParams, TLV::TLVReader *payload) final;
-    void OnError(InvokeInitiator &invokeInteration, CommandParams *aPath, CHIP_ERROR error, StatusResponse *statusResponse) final {}
-    void OnEnd(InvokeInitiator &invokeInteraction) final {}
+    void OnResponse(InvokeInitiator & invokeInteraction, CommandParams & commandParams, TLV::TLVReader * payload) final;
+    void OnError(InvokeInitiator & invokeInteration, CommandParams * aPath, CHIP_ERROR error, StatusResponse * statusResponse) final
+    {}
+    void OnEnd(InvokeInitiator & invokeInteraction) final {}
 
     System::PacketBufferHandle mBuf;
     int mGotCommandB = 0;
@@ -213,24 +218,23 @@ using namespace chip::TLV;
 
 void TestInvokeInteraction::InterceptMessage(System::PacketBufferHandle buf)
 {
-    mBuf = std::move(buf);
+    mBuf        = std::move(buf);
     mGotMessage = true;
 }
 
-void
-TestInvokeInteraction::OnResponse(InvokeInitiator &invokeInteraction, CommandParams &commandParams, TLV::TLVReader *payload)
+void TestInvokeInteraction::OnResponse(InvokeInitiator & invokeInteraction, CommandParams & commandParams, TLV::TLVReader * payload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     chip::app::Cluster::TestCluster::CommandB::Type resp;
     uint8_t d[5];
     chip::app::Cluster::TestCluster::StructA::Type e[5];
 
-    resp.d = chip::Span<uint8_t>{d};
-    resp.e = chip::Span<chip::app::Cluster::TestCluster::StructA::Type>{e};
+    resp.d = chip::Span<uint8_t>{ d };
+    resp.e = chip::Span<chip::app::Cluster::TestCluster::StructA::Type>{ e };
 
-    if (commandParams.CommandId == chip::app::Cluster::TestCluster::kCommandBId) {
+    if (commandParams.CommandId == chip::app::Cluster::TestCluster::kCommandBId)
+    {
         printf("Received CommandB\n");
-
 
         NL_TEST_ASSERT(gpSuite, payload != nullptr);
 
@@ -242,11 +246,13 @@ TestInvokeInteraction::OnResponse(InvokeInitiator &invokeInteraction, CommandPar
         NL_TEST_ASSERT(gpSuite, resp.c.x == 19);
         NL_TEST_ASSERT(gpSuite, resp.c.y == 233);
 
-        for (size_t i = 0; i < ArraySize(d); i++) {
+        for (size_t i = 0; i < ArraySize(d); i++)
+        {
             NL_TEST_ASSERT(gpSuite, d[i] == (uint8_t)(255 - i));
         }
 
-        for (size_t i = 0; i < ArraySize(e); i++) {
+        for (size_t i = 0; i < ArraySize(e); i++)
+        {
             NL_TEST_ASSERT(gpSuite, e[i].x == (uint8_t)(255 - i));
             NL_TEST_ASSERT(gpSuite, e[i].y == (uint8_t)(255 - i));
         }
@@ -263,7 +269,7 @@ int TestInvokeInteraction::GetNumActiveInvokes()
 {
     int count = 0;
 
-    InteractionModelEngine::GetInstance()->mInvokeResponders.ForEachActiveObject([&](InvokeResponder *apInteraction) {
+    InteractionModelEngine::GetInstance()->mInvokeResponders.ForEachActiveObject([&](InvokeResponder * apInteraction) {
         count++;
         return true;
     });
@@ -286,7 +292,7 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     System::PacketBufferHandle buf;
-    Messaging::ExchangeContext *pRxEc;
+    Messaging::ExchangeContext * pRxEc;
     PacketHeader packetHdr;
     PayloadHeader payloadHdr;
     TestServerCluster serverEp0;
@@ -315,25 +321,24 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
         chip::app::Cluster::TestCluster::CommandA::Type req;
         uint8_t d[5];
 
-        req.a = 10;
-        req.b = 20;
+        req.a   = 10;
+        req.b   = 20;
         req.c.x = 13;
         req.c.y = 99;
-        req.d = chip::Span<uint8_t>{d};
+        req.d   = chip::Span<uint8_t>{ d };
 
-        for (size_t i = 0; i < ArraySize(d); i++) {
-            d[i] = (uint8_t)i;
+        for (size_t i = 0; i < ArraySize(d); i++)
+        {
+            d[i] = (uint8_t) i;
         }
 
-        err = invokeInitiator.AddRequest(CommandParams(req, 0, true), [&req](auto &writer, auto tag) {
-            return EncodeSchemaElement(req, writer, tag);
-        });
+        err = invokeInitiator.AddRequest(CommandParams(req, 0, true),
+                                         [&req](auto & writer, auto tag) { return EncodeSchemaElement(req, writer, tag); });
 
         NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
-        err = invokeInitiator.AddRequest(CommandParams(req, 1, true), [&req](auto &writer, auto tag) {
-            return EncodeSchemaElement(req, writer, tag);
-        });
+        err = invokeInitiator.AddRequest(CommandParams(req, 1, true),
+                                         [&req](auto & writer, auto tag) { return EncodeSchemaElement(req, writer, tag); });
 
         NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
@@ -363,7 +368,7 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
     //
     gServerInvoke = nullptr;
 
-    pRxEc = chip::gExchangeManager.NewContext({0, 0, 0}, NULL);
+    pRxEc = chip::gExchangeManager.NewContext({ 0, 0, 0 }, NULL);
     NL_TEST_ASSERT(apSuite, pRxEc != nullptr);
 
     //
@@ -413,7 +418,7 @@ void TestInvokeInteraction::TestInvokeInteractionAsyncResponder(nlTestSuite * ap
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     System::PacketBufferHandle buf;
-    Messaging::ExchangeContext *pRxEc;
+    Messaging::ExchangeContext * pRxEc;
     PacketHeader packetHdr;
     PayloadHeader payloadHdr;
     TestServerCluster serverEp0;
@@ -445,25 +450,24 @@ void TestInvokeInteraction::TestInvokeInteractionAsyncResponder(nlTestSuite * ap
         chip::app::Cluster::TestCluster::CommandA::Type req;
         uint8_t d[5];
 
-        req.a = 10;
-        req.b = 20;
+        req.a   = 10;
+        req.b   = 20;
         req.c.x = 13;
         req.c.y = 99;
-        req.d = chip::Span<uint8_t>{d};
+        req.d   = chip::Span<uint8_t>{ d };
 
-        for (size_t i = 0; i < ArraySize(d); i++) {
-            d[i] = (uint8_t)i;
+        for (size_t i = 0; i < ArraySize(d); i++)
+        {
+            d[i] = (uint8_t) i;
         }
 
-        err = invokeInitiator.AddRequest(CommandParams(req, 0, true), [&req](auto &writer, auto tag) {
-            return EncodeSchemaElement(req, writer, tag);
-        });
+        err = invokeInitiator.AddRequest(CommandParams(req, 0, true),
+                                         [&req](auto & writer, auto tag) { return EncodeSchemaElement(req, writer, tag); });
 
         NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
-        err = invokeInitiator.AddRequest(CommandParams(req, 1, true), [&req](auto &writer, auto tag) {
-            return EncodeSchemaElement(req, writer, tag);
-        });
+        err = invokeInitiator.AddRequest(CommandParams(req, 1, true),
+                                         [&req](auto & writer, auto tag) { return EncodeSchemaElement(req, writer, tag); });
 
         NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
@@ -493,7 +497,7 @@ void TestInvokeInteraction::TestInvokeInteractionAsyncResponder(nlTestSuite * ap
     //
     gServerInvoke = nullptr;
 
-    pRxEc = chip::gExchangeManager.NewContext({0, 0, 0}, NULL);
+    pRxEc = chip::gExchangeManager.NewContext({ 0, 0, 0 }, NULL);
     NL_TEST_ASSERT(apSuite, pRxEc != nullptr);
 
     //
@@ -558,7 +562,8 @@ void InitializeChip(nlTestSuite * apSuite)
 
     chip::gSystemLayer.Init();
 
-    err = chip::gSessionManager.Init(chip::kTestDeviceNodeId, &chip::gSystemLayer, &chip::gTransportManager, &admins, &chip::gMessageCounterManager);
+    err = chip::gSessionManager.Init(chip::kTestDeviceNodeId, &chip::gSystemLayer, &chip::gTransportManager, &admins,
+                                     &chip::gMessageCounterManager);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
     err = chip::gExchangeManager.Init(&chip::gSessionManager);

@@ -120,7 +120,7 @@ TestServerCluster::SendAsyncResp()
     return err;
 }
 
-CHIP_ERROR 
+CHIP_ERROR
 TestServerCluster::OnInvokeRequest(CommandParams &commandParams, InvokeResponder &invokeInteraction, TLV::TLVReader *payload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
@@ -134,7 +134,7 @@ TestServerCluster::OnInvokeRequest(CommandParams &commandParams, InvokeResponder
 
         gServerInvoke = &invokeInteraction;
 
-        NL_TEST_ASSERT(gpSuite, payload != nullptr); 
+        NL_TEST_ASSERT(gpSuite, payload != nullptr);
 
         err = DecodeSchemaElement(req, *payload);
         NL_TEST_ASSERT(gpSuite, err == CHIP_NO_ERROR);
@@ -151,8 +151,8 @@ TestServerCluster::OnInvokeRequest(CommandParams &commandParams, InvokeResponder
         //
         // Send response synchronously
         //
-      
-        if (!mDoAsyncResp) { 
+
+        if (!mDoAsyncResp) {
             chip::app::Cluster::TestCluster::CommandB::Type resp;
             chip::app::Cluster::TestCluster::StructA::Type e[5];
 
@@ -162,7 +162,7 @@ TestServerCluster::OnInvokeRequest(CommandParams &commandParams, InvokeResponder
             resp.c.y = 233;
             resp.d = chip::Span<uint8_t>{d};
             resp.e = chip::Span<chip::app::Cluster::TestCluster::StructA::Type>{e};
-    
+
             for (size_t i = 0; i < ArraySize(d); i++) {
                 d[i] = (uint8_t)(255 - i);
             }
@@ -230,9 +230,9 @@ TestInvokeInteraction::OnResponse(InvokeInitiator &invokeInteraction, CommandPar
 
     if (commandParams.CommandId == chip::app::Cluster::TestCluster::kCommandBId) {
         printf("Received CommandB\n");
-		
 
-        NL_TEST_ASSERT(gpSuite, payload != nullptr); 
+
+        NL_TEST_ASSERT(gpSuite, payload != nullptr);
 
         err = DecodeSchemaElement(resp, *payload);
         NL_TEST_ASSERT(gpSuite, err == CHIP_NO_ERROR);
@@ -298,7 +298,7 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
 
     serverEp0.SetEndpoint(0);
     serverEp1.SetEndpoint(1);
-    
+
     err = chip::app::InteractionModelEngine::GetInstance()->RegisterServer(&serverEp0);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
@@ -324,11 +324,11 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
         for (size_t i = 0; i < ArraySize(d); i++) {
             d[i] = (uint8_t)i;
         }
-    
+
         err = invokeInitiator.AddRequest(CommandParams(req, 0, true), [&req](auto &writer, auto tag) {
             return EncodeSchemaElement(req, writer, tag);
         });
-        
+
         NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
         err = invokeInitiator.AddRequest(CommandParams(req, 1, true), [&req](auto &writer, auto tag) {
@@ -365,7 +365,7 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
 
     pRxEc = chip::gExchangeManager.NewContext({0, 0, 0}, NULL);
     NL_TEST_ASSERT(apSuite, pRxEc != nullptr);
-    
+
     //
     // Pump the previously created packet buffer back into the IM to mimic the receive pathway with the newly created EC from above.
     //
@@ -379,7 +379,7 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
     // to the pool.
     //
     NL_TEST_ASSERT(apSuite, gTestInvoke.GetNumActiveInvokes() == 0);
-    
+
     {
         chip::System::PacketBufferTLVReader reader;
         reader.Init(std::move(gTestInvoke.mBuf));
@@ -428,7 +428,7 @@ void TestInvokeInteraction::TestInvokeInteractionAsyncResponder(nlTestSuite * ap
 
     // Set the server EP1 test logic to not respond syncronously.
     serverEp1.SetAsyncResp();
-    
+
     err = chip::app::InteractionModelEngine::GetInstance()->RegisterServer(&serverEp0);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
@@ -454,11 +454,11 @@ void TestInvokeInteraction::TestInvokeInteractionAsyncResponder(nlTestSuite * ap
         for (size_t i = 0; i < ArraySize(d); i++) {
             d[i] = (uint8_t)i;
         }
-    
+
         err = invokeInitiator.AddRequest(CommandParams(req, 0, true), [&req](auto &writer, auto tag) {
             return EncodeSchemaElement(req, writer, tag);
         });
-        
+
         NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
         err = invokeInitiator.AddRequest(CommandParams(req, 1, true), [&req](auto &writer, auto tag) {
@@ -495,7 +495,7 @@ void TestInvokeInteraction::TestInvokeInteractionAsyncResponder(nlTestSuite * ap
 
     pRxEc = chip::gExchangeManager.NewContext({0, 0, 0}, NULL);
     NL_TEST_ASSERT(apSuite, pRxEc != nullptr);
-    
+
     //
     // Pump the previously created packet buffer back into the IM to mimic the receive pathway with the newly created EC from above.
     //
@@ -512,13 +512,13 @@ void TestInvokeInteraction::TestInvokeInteractionAsyncResponder(nlTestSuite * ap
 
     // Make sure the invoke responder object has not been auto free'ed since there is still pending work on that object.
     NL_TEST_ASSERT(apSuite, gTestInvoke.GetNumActiveInvokes() == 1);
-   
+
     err = serverEp1.SendAsyncResp();
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
     // Now, make sure it's been freed.
     NL_TEST_ASSERT(apSuite, gTestInvoke.GetNumActiveInvokes() == 0);
-    
+
     {
         chip::System::PacketBufferTLVReader reader;
         reader.Init(std::move(gTestInvoke.mBuf));
